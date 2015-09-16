@@ -1,0 +1,6 @@
+source 'http://rubygems.org'
+gem 'sinatra'
+gem 'sass'
+gem 'coffee-script'
+gem 'array_stats'
+gem 'sinatra-export'
