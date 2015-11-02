@@ -79,7 +79,6 @@ class BubbleGraph
 
   updateYear: (year) =>
     @selectedYear = year;
-    # @force.stop()
     quadrant.changeYear(year) for quadrant in @quadrants
 
   updateNodes: () =>
@@ -111,6 +110,7 @@ class Node
 
   changeYear: (year) =>
     d = @map.get year
+    @selectedYear = @map.keys().indexOf year
     @radius = if (d.val <= 0) then 0 else @calculateRadius(@circleScale(d.val), d.val, @minA, @maxA)
 
 class Quadrant
@@ -128,6 +128,7 @@ class Quadrant
     @colour = colour
     @name = name
     @tooltip = tooltip
+    @total = 0
 
     @element = @container.append("g")
       .attr(class: "quadrant")
@@ -147,6 +148,13 @@ class Quadrant
       .attr(y: 30)
       .attr(fill: @colour)
 
+    @element.append("text")
+      .attr(class: "total")
+      .attr(x: if @fx is 600 then 10 else 580)
+      .attr("text-anchor": if @fx is 600 then "start" else "end")
+      .attr(y: 60)
+      .attr(fill: @colour)
+
   addNode: (node) =>
     @nodes.push node
 
@@ -164,8 +172,15 @@ class Quadrant
 
     node.select("text")
       .text((d) -> d.data.item.substring(0, d.radius / 3))
+    @updateTotal()
+
+  updateTotal: =>
+    @total = d3.sum(@nodes, (d) => +d.data.years[d.selectedYear].val)
+    @element.select('.total')
+      .text("#{d3.format(",") @total} Million")
 
   drawNodes: () =>
+    @updateTotal()
     node = @element.selectAll("g.node").data(@nodes)
 
     node.exit().remove()
@@ -202,9 +217,9 @@ class Quadrant
             <strong>#{d.data.item}</strong>
             #{d3.format("$,") d.data.years[d.selectedYear].val}M AUD
           ")
-          .transition()
           .style(left: "#{d.x + d.quadrant.x}px")
           .style(top: "#{d.y + d.quadrant.y}px")
+          .transition()
           .style(opacity: 1)
       )
       .on("mouseout", (d) ->

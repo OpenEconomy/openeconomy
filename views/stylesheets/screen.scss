@@ -49,6 +49,11 @@ text.title {
 	font-weight: 500;
 	font-size: 20px;
 }
+
+.node circle {
+  cursor: pointer
+}
+
 .timeline {
 	position: fixed;
 	width: 1200px;
