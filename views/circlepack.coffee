@@ -13,7 +13,7 @@ graph = (e, assetsData, expensesData, liabilitiesData, revenueData) ->
 	center = {x: width/2, y: height/2}
 	minD = 60
 	maxD = 400
-	svg = d3.select(".content").append("svg").attr(width: width).attr(height: height)
+	svg = d3.select(".circlepack").append("svg").attr(width: width).attr(height: height)
 	layout = [
 		{x: ((r) -> center.x - r * 2), y: ((r) -> center.y - r * 2) }
 		{x: ((r) -> center.x), y: ((r) -> center.y - r * 2) }

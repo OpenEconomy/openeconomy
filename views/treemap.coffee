@@ -13,7 +13,7 @@ graph = (e, assetsData, expensesData, liabilitiesData, revenueData) ->
 	width = 1000
 	height = 800
 	center = {x: width/2, y: height/2}
-	div = d3.select(".content").attr(class: "treemap")
+	div = d3.select(".treemap").attr(class: "treemap")
 	layout = [
 		{x: ((r) -> center.x - r * 2), y: ((r) -> center.y - r * 2) }
 		{x: ((r) -> center.x), y: ((r) -> center.y - r * 2) }

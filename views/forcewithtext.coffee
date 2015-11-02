@@ -1,65 +1,218 @@
 geo = new Geo()
 
+class BubbleGraph
+	constructor: (segmentData) ->
+		@nodes = []
+		width = 1200
+		height = 800
+		@force = d3.layout.force()
+		@selectedYear = "2013-14"
+
+		center = {x: width/2, y: height/2}
+		@svg = d3.select(".content").append("svg").attr(width: width).attr(height: height)
+		quadrantData = [{x:0,y:0, fx:width/2, fy: height/2}, {x:width/2,y:0, fx: 0, fy: height/2}, {x:0,y:height/2, fx: width/2, fy: 0}, {x:width/2,y:height/2, fx: 0, fy: 0}]
+		@quadrants = (new Quadrant(i, this, q.x, q.y, center.x, center.y, q.fx, q.fy, segmentData[i].colour, segmentData[i].name) for q, i in quadrantData)
+		segment.nodes = (new Node(node, @quadrants[q], segment.colour) for node in segment.data) for segment, q in segmentData
+
+		years = (y.year for y in segmentData[0].data[0].years)
+		years.sort((a,b) -> d3.descending(a,b))
+		timeline = d3.select(".timeline")
+		timelineScale = d3.scale.linear().domain([0, years.length]).range([0, width])
+		timeline.selectAll("a")
+			.data(years)
+			.enter()
+			.append("a")
+			.text((d) -> d)
+			.style(left: (d,i) -> "#{timelineScale i}px")
+			.on(click: (d) => @updateYear(d))
+
+		@updateNodes()
+		@drawNodes()
+
+		tick = (e) =>
+			k = 0.1 * e.alpha
+			(o.y += (o.quadrant.fy - o.y) * k; o.x += (o.quadrant.fx - o.x) * k) for o in quadrant.nodes for quadrant in @quadrants
+			node = @svg.selectAll(".quadrant g.node")
+			node.each(collide(e.alpha))
+				.attr(transform: (d) -> "translate(#{d.x},#{d.y})")
+
+		collide = (alpha) =>
+			(d) =>
+				quadtree = d3.geom.quadtree(@nodes)
+				r = d.radius
+				d.x = Math.max(d.radius, Math.min(width/2 - d.radius, d.x))
+				d.y = Math.max(d.radius, Math.min(height/2 - d.radius, d.y))
+				nx1 = d.x - r
+				nx2 = d.x + r
+				ny1 = d.y - r
+				ny2 = d.y + r
+
+				quadtree.visit((quad, x1, y1, x2, y2) ->
+					if quad.point and !(quad.point is d)
+						x = d.x - quad.point.x
+						y = d.y - quad.point.y
+						l = Math.sqrt(x * x + y * y)
+						r = d.radius + quad.point.radius
+						if (l < r)
+							l = (l - r) / l * alpha
+							d.x -= x *= l
+							d.y -= y *= l
+							quad.point.x += x
+							quad.point.y += y
+					x1 > nx2 || x2 < nx1 || y1 > ny2 || y2 < ny1
+			)
+
+		@force = @force.nodes(@nodes)
+			.size([width, height])
+			.gravity(0)
+			.charge(5)
+			.on("tick", tick)
+		@force.start()
+
+	drawNodes: () =>
+		quadrant.drawNodes() for quadrant in @quadrants
+
+	updateYear: (year) =>
+		@selectedYear = year;
+		# @force.stop()
+		quadrant.changeYear(year) for quadrant in @quadrants
+
+	updateNodes: () =>
+		nodes = []
+		nodes.push quadrant.nodes... for quadrant in @quadrants
+		@nodes = nodes
+
+class Node
+	constructor: (data, quadrant, colour) ->
+		@quadrant = quadrant
+		@data = data
+		@map = d3.map(@data.years, (d) -> d.year)
+		@colour = colour
+		@children = data.children
+		@x = quadrant.fx
+		@y = quadrant.fy
+		minR = 20
+		maxR = 120
+		@minA = geo.areaFromRadius(minR)
+		@maxA = geo.areaFromRadius(maxR)
+		@circleScale = d3.scale.linear().domain([1, 100000])
+		@quadrant.addNode this
+		@selectedYear = 0
+		@radius = if data.years[@selectedYear].val <= 0 then 0 else @calculateRadius(@circleScale(data.years[@selectedYear].val), data.years[@selectedYear].val, @minA, @maxA)
+
+	calculateRadius: (ratio, value, minArea, maxArea) =>
+		area = ((maxArea - minArea) * ratio) + minArea
+		geo.radiusFromArea(area)
+
+	changeYear: (year) =>
+		d = @map.get year
+		@radius = if (d.val <= 0) then 0 else @calculateRadius(@circleScale(d.val), d.val, @minA, @maxA)
+
+class Quadrant
+	constructor: (index, graph, x, y, width, height, fx, fy, colour, name) ->
+		@index = index
+		@nodes = []
+		@graph = graph
+		@container = graph.svg
+		@x = x
+		@y = y
+		@fx = fx
+		@fy = fy
+		@width = width
+		@height = height
+		@colour = colour
+		@name = name
+
+		@element = @container.append("g")
+			.attr(class: "quadrant")
+			.attr(transform: "translate(#{x},#{y})")
+
+		@element.append("rect")
+			.attr(width: width)
+			.attr(height: height)
+			.attr(fill: @colour)
+			.attr("fill-opacity": 0.2)
+
+		@element.append("text")
+			.text(name)
+      .attr(class: "title")
+			.attr(x: if @fx is 600 then 10 else 580)
+      .attr("text-anchor": if @fx is 600 then "start" else "end")
+			.attr(y: 30)
+      .attr(fill: @colour)
+
+
+	addNode: (node) =>
+		@nodes.push node
+
+	removeNode: (nodeData) =>
+		@nodes.splice(i, 1) for i, node of @nodes when node.data is nodeData
+
+	changeYear: (year) =>
+		node.changeYear(year) for node in @nodes
+		node = @element.selectAll("g.node")
+		node.select("circle")
+			.transition()
+			.duration(1000)
+			.attr(r: (d) -> d.radius)
+			.each("end", () => @graph.force.start())
+
+		node.select("text")
+			.text((d) -> d.data.item.substring(0, d.radius / 3))
+
+	drawNodes: () =>
+		node = @element.selectAll("g.node").data(@nodes)
+
+		node.exit().remove()
+
+		nodeEnter = node.enter()
+			.append("g")
+			.attr(class: "node")
+			.attr(transform: (d) -> "translate(#{d.quadrant.fx},#{d.quadrant.fy})")
+
+		nodeEnter.append("text")
+			.attr("dy", ".3em")
+			.style("text-anchor", "middle")
+			.text((d) -> d.data.item.substring(0, d.radius / 3))
+			.attr(fill: (d) -> d3.rgb(d.colour).darker(2))
+			.style("font-size": "12px")
+
+		nodeEnter.append("circle")
+			.attr(r: (d) -> d.radius)
+			.attr(fill: (d) -> d.colour)
+			.attr(stroke: (d) -> d.colour)
+			.attr("stroke-width": (d) -> if d.data.children then 4 else 1)
+			.attr("stroke-opacity": 0.4)
+			.attr("fill-opacity": 0.6)
+			.on("click", (d) -> console.log d)
+
+		nodeEnter.filter((d) -> d.data.children)
+			.select("circle")
+			.on("mouseover", () -> d3.select(this).transition().attr("stroke-opacity", 0.8))
+			.on("mouseout", () -> d3.select(this).transition().attr("stroke-opacity", 0.4))
+			.on("click", (d) =>
+				if d.children
+					d._children = d.children
+					d.children = null
+					new Node(node, d.quadrant, d.colour) for node in d._children
+				else
+					d.children = d._children
+					d._children = null
+					@removeNode node for node in d.children
+				@graph.updateNodes()
+				@drawNodes()
+			)
+
+		@graph.force.nodes(@graph.nodes).start()
+
 graph = (e, assetsData, expensesData, liabilitiesData, revenueData) ->
 	segmentData = [
-		{name: "revenue", colour: "#27a776", data: getEntity revenueData}
-		{name: "expenses", colour: "#911048", data: getEntity expensesData}
-		{name: "assets", colour: "#2789ab", data: getEntity assetsData}
-		{name: "liabilities", colour: "#c54927", data: getEntity liabilitiesData}
-	]
-	nodes = []
-
-	width = 1200
-	height = 800
-	center = {x: width/2, y: height/2}
-	svg = d3.select(".content").append("svg").attr(width: width).attr(height: height)
-	quadrantData = [{x:0,y:0, fx:width/2, fy: height/2}, {x:width/2,y:0, fx: 0, fy: height/2}, {x:0,y:height/2, fx: width/2, fy: 0}, {x:width/2,y:height/2, fx: 0, fy: 0}]
-	quadrants = (new Quadrant(i, svg, q.x, q.y, center.x, center.y, q.fx, q.fy, segmentData[i].colour) for q, i in quadrantData)
-	segment.nodes = (new Node(i, node, quadrants[q], segment.colour, nodes) for node,i in segment.data) for segment, q in segmentData
-	quadrant.drawNodes() for quadrant in quadrants
-
-	node = svg.selectAll(".quadrant g.node")
-
-	tick = (e) ->
-		k = 0.2 * e.alpha
-		(o.data.y += (o.quadrant.fy - o.data.y) * k; o.data.x += (o.quadrant.fx - o.data.x) * k) for o in segment.nodes for segment in segmentData
-		
-		node.each(collide(e.alpha))
-			.attr(transform: (d) -> "translate(#{d.data.x},#{d.data.y})")
-
-	collide = (alpha) ->
-		(d) ->
-			quadtree = d3.geom.quadtree(nodes)
-			r = d.data.radius
-			d.data.x = Math.max(d.data.radius, Math.min(width/2 - d.data.radius, d.data.x))
-			d.data.y = Math.max(d.data.radius, Math.min(height/2 - d.data.radius, d.data.y))
-			nx1 = d.data.x - r
-			nx2 = d.data.x + r
-			ny1 = d.data.y - r
-			ny2 = d.data.y + r
-
-			quadtree.visit((quad, x1, y1, x2, y2) ->
-				if quad.point and !(quad.point is d.data)
-					x = d.data.x - quad.point.x
-					y = d.data.y - quad.point.y
-					l = Math.sqrt(x * x + y * y)
-					r = d.data.radius + quad.point.radius
-					if (l < r)
-						l = (l - r) / l * alpha * 10
-						d.data.x -= x *= l
-						d.data.y -= y *= l
-						quad.point.x += x
-						quad.point.y += y
-				x1 > nx2 || x2 < nx1 || y1 > ny2 || y2 < ny1
-		)
-
-	force = d3.layout.force()
-		.nodes(nodes)
-		.size([width, height])
-		.gravity(0)
-		.charge(2)
-		.on("tick", tick)
-		.start()
+			{name: "liabilities", colour: "#c54927", data: getEntity liabilitiesData}
+			{name: "expenses", colour: "#911048", data: getEntity expensesData}
+			{name: "assets", colour: "#2789ab", data: getEntity assetsData}
+			{name: "revenue", colour: "#27a776", data: getEntity revenueData}
+		]
+	graph = new BubbleGraph(segmentData)
 
 getEntity = (data) ->
 	dataMap = data.reduce((map, node) ->
@@ -82,96 +235,10 @@ generateTree = (node, dataMap, treeData) ->
 	else
 		treeData.push node
 
-    
 queue()
 	.defer(d3.csv, 'data/WA4/assets.csv')
 	.defer(d3.csv, 'data/WA4/expenses.csv')
 	.defer(d3.csv, 'data/WA4/liabilities.csv')
 	.defer(d3.csv, 'data/WA4/revenue.csv')
 	.await(graph)
-
-class Node
-	constructor: (index, data, quadrant, colour, nodesData) ->
-		@index = index
-		@quadrant = quadrant
-		@data = data
-		@colour = colour
-		@children = data.children
-		minR = 20
-		maxR = 120
-		minA = geo.areaFromRadius(minR)
-		maxA = geo.areaFromRadius(maxR)
-		circleScale = d3.scale.linear().domain([1, 100000])
-		@quadrant.nodes.push this
-		nodesData.push data
-		data.x = quadrant.fx
-		data.y = quadrant.fy
-		data.radius = if data.years[0].val <= 0 then 0 else @calculateRadius(circleScale(data.years[0].val), data.years[0].val, minA, maxA)
-	
-	calculateRadius: (ratio, value, minArea, maxArea) => 
-		area = ((maxArea - minArea) * ratio) + minArea
-		geo.radiusFromArea(area)
-
-class Quadrant
-	constructor: (index, container, x, y, width, height, fx, fy, colour) ->
-		@index = index
-		@nodes = []
-		@container = container
-		@x = x
-		@y = y
-		@fx = fx
-		@fy = fy
-		@width = width
-		@height = height
-		@colour = colour
-
-		@element = @container.append("g")
-			.attr(class: "quadrant")
-			.attr(transform: "translate(#{x},#{y})")
-
-		@element.append("rect")
-			.attr(width: width)
-			.attr(height: height)
-			.attr(fill: @colour)
-			.attr("fill-opacity": 0.2)
-
-	drawNodes: () ->
-		node = @element.selectAll("g.node")
-			.data(@nodes)
-			.enter()
-			.append("g")
-			.attr(class: "node")
-			.attr(transform: (d) -> "translate(#{d.quadrant.fx},#{d.quadrant.fy})")
-
-		node.append("text")
-			.attr("dy", ".3em")
-			.style("text-anchor", "middle")
-			.text((d) -> d.data.item.substring(0, d.data.radius / 3))
-			.attr(fill: (d) -> d3.rgb(d.colour).darker(2))
-			.style("font-size": "12px")
-
-		node.append("circle")
-			.attr(r: (d) -> d.data.radius)
-			.attr(fill: (d) -> d.colour)
-			.attr(stroke: (d) -> d.colour)
-			.attr("stroke-width": (d) -> if d.data.children then 4 else 1)
-			.attr("stroke-opacity": 0.4)
-			.attr("fill-opacity": 0.6)
-			.on("click", (d) -> console.log d)
-
-		node.filter((d) -> d.data.children)
-			.select("circle")
-			.on("mouseover", () -> d3.select(this).transition().attr("stroke-opacity", 0.8))
-			.on("mouseout", () -> d3.select(this).transition().attr("stroke-opacity", 0.4))
-			.on("click", (d) =>
-				if d.children
-						d._children = d.children
-						d.children = null
-				else
-					d.children = d._children
-					d._children = null
-					@nodes.push(new Node(i + d.index, node, d.quadrant, d.colour, node)) for node,i in d.children
-					console.log @nodes
-				@drawNodes()
-			)
 

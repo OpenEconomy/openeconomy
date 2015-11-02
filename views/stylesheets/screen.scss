@@ -4,7 +4,7 @@
 h1 {font-size: $type1;}
 h2 {font-size: $type2;}
 h3 {font-size: $type3;}
-h4 {font-size: $type4;}	
+h4 {font-size: $type4;}
 body {
 	font-family: $type;
 }
@@ -19,106 +19,30 @@ body {
     clear: both;
 }
 
-body {color: #fff; text-align: center; margin: 0; transition: all 0.2s}
+body { margin: 0; transition: all 0.2s}
 
-text {  font-weight: 400; font-size: 14px}
+h1, h2 {line-height: 1.5em}
 
-a { color: #AFEB4F }
-.years-axis text { font-size: 8px}
-
-h1, h2 { text-align: center; margin: 0 5%; line-height: 1.5em}
-
-h1 { font-weight: 200; font-size: $type1 * 1.75; margin: 0.25em 0}
+h1 { font-weight: 200; font-size: $type1; margin: 0.25em 0; color: #333333}
 h2 { font-weight: 200; font-size: $type4; color: #d2d2d2; margin-bottom: 1.5em}
 
-.category { position: relative; display: inline-block; z-index: 10}
-.category button { border: none; font: inherit; padding: 3px 8px; background-color: #fd8d3c; color: #333; font-weight: 500; cursor: pointer; 
-	&:after {
-		content: " \25BE";
-		padding-left: 5px;
-		display: inline-block
-	}
-	&:focus { outline: none }
+text.title {
+  text-transform: uppercase;
+  font-weight: 500;
+  font-size: 20px;
 }
-.category ul { position: absolute; top: 100%; right: 0; text-align: left; padding: 0; margin: 0; display: none;
-	li { list-style: none; ; 	
-		a { padding: 8px 10px; background-color: #fd8d3c; color: #333; font-size: $type5; font-weight: 400; cursor: pointer; display: block; min-width: 250px;
-			&:hover { background-color: #f2f2f2}
-		}
-
-	&.current { z-index: 100 }
+.timeline {
+	position: fixed;
+	width: 1200px;
+	bottom: 0px;
+	left: 0;
+	height: 40px;
+	background-color: rgba(255,255,255,0.5);
+	a {
+		display: block;
+		position: absolute;
+		padding: 10px 5px;
+		width: 80px;
+		cursor: pointer;
 	}
-}
-text.label { font-size: 12px; font-weight: 200;}
-text.min-gap, text.max-gap { font-size: 12px; font-weight: 200; fill: #ababab }
-.gap-hover, .male-hover, .female-hover { pointer-events: none}
-#controls { display: none; clear:both; z-index: 5; width: 100%; position: relative; background-color: #2e2e2e; height: 22px; margin-bottom: 1.25em; padding: 15px 0; font-weight: 200;
-	.sorting {
-		float: left;
-		margin-left: 5%;
-		ul {
-			margin: 0;
-			padding: 0;
-			display: inline;
-			li { 
-				list-style: none;
-				display: inline;
-				margin: 0 5px;
-				padding: 4px 6px;
-				background-color: #454545;
-				cursor: pointer;
-				&:hover { background-color: #555}
-				&.selected { background-color: #6d6d6d; pointer-events: none; cursor: default;}
-			}
-		}
-	}
-	.years { float: left; margin-left: 10px; position: relative; margin-top: -5px; 
-		button { border: none; font: inherit; padding: 4px; background-color: #6d6d6d; color: #fff; cursor: pointer; display: inline;
-			&:after {
-				content: " \25BE";
-				padding-left: 5px;
-				display: inline-block
-			}
-			&:focus { outline: none }
-		}
-		ul {
-			position: absolute; top: 100%; right: 0; text-align: left; padding: 0; margin: 0; display: none;
-			li { text-align: right; list-style: none; padding: 4px 8px; min-width: 40px; font-size: $type6; cursor: pointer; display: block; background-color: #6d6d6d;
-				&:hover { background-color: #f2f2f2; color: #333;}
-				&.current { z-index: 100 }
-			}
-		}
-
-	}
-	.keys {
-		float: right;
-		margin-right: 5%;
-		div, svg { display: inline}
-	}
-}
-#line {
-	width: 100%;
-	position: absolute;
-	height: 35px;
-	border-bottom: 1px solid #fff;
-	z-index: 100;
-}
-footer { margin: 10px 0; font-weight: 200 }
-
-@media only screen and (max-width: 1250px) {
-	.keys,{ margin: 20px 0 0 0;}
-	#controls { height: auto; clear: both;
-		.sorting, .years, .keys{
-			margin: 4px 0;
-			float: none; 
-		}
-		.years {
-			margin: 10px 0;
-		}
-		.sorting ul li { display: inline-block; margin: 4px}
-	}
-}
-
-@media only screen and (max-width: 560px) {
-	#controls .years ul {width: 100%; li { text-align: center} }
 }
