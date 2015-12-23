@@ -38,9 +38,13 @@ h2 { font-weight: 200; font-size: $type4; color: #d2d2d2; margin-bottom: 1.5em}
 	line-height: 16px;
 	max-width: 160px;
 
+  em {
+    color: #777
+  }
+
   strong {
     display: block;
-    margin-bottom: 4px;
+    margin: 4px 0;
   }
 }
 

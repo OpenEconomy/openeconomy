@@ -1,8 +1,15 @@
+Array.prototype.removeMatching = (matches) ->
+  # Move backwards through array to avoid shifting indexes on deletion and skipping items
+  for i in [@length-1..0]
+    if matches @[i]
+      @splice(i, 1)
+
 geo = new Geo()
 
 class BubbleGraph
   constructor: (segmentData) ->
     @nodes = []
+    @links = []
     width = 1200
     height = 800
     @force = d3.layout.force()
@@ -17,7 +24,7 @@ class BubbleGraph
 
     quadrantData = [{x:0,y:0, fx:width/2, fy: height/2}, {x:width/2,y:0, fx: 0, fy: height/2}, {x:0,y:height/2, fx: width/2, fy: 0}, {x:width/2,y:height/2, fx: 0, fy: 0}]
     @quadrants = (new Quadrant(i, this, q.x, q.y, center.x, center.y, q.fx, q.fy, segmentData[i].colour, segmentData[i].name, tooltip) for q, i in quadrantData)
-    segment.nodes = (new Node(node, @quadrants[q], segment.colour) for node in segment.data) for segment, q in segmentData
+    nodes = (@quadrants[q].addNode(new Node(node, @quadrants[q], segment.colour)) for node in segment.data) for segment, q in segmentData
 
     years = (y.year for y in segmentData[0].data[0].years)
     years.sort((a,b) -> d3.descending(a,b))
@@ -31,20 +38,26 @@ class BubbleGraph
       .style(left: (d,i) -> "#{timelineScale i}px")
       .on(click: (d) => @updateYear(d))
 
-    @updateNodes()
     @drawNodes()
 
     tick = (e) =>
       k = 0.1 * e.alpha
-      (o.y += (o.quadrant.fy - o.y) * k; o.x += (o.quadrant.fx - o.x) * k) for o in quadrant.nodes for quadrant in @quadrants
+      (o.y += (o.quadrant.fy - o.y) * k; o.x += (o.quadrant.fx - o.x) * k) for o in @nodes when not o.parent
       node = @svg.selectAll(".quadrant g.node")
       node.each(collide(e.alpha))
         .attr(transform: (d) -> "translate(#{d.x},#{d.y})")
 
+      link = @svg.selectAll(".quadrant .link")
+
+      link.attr("x1", (d)-> d.source.x)
+        .attr("y1", (d)-> d.source.y)
+        .attr("x2", (d)-> d.target.x)
+        .attr("y2", (d)-> d.target.y)
+
     collide = (alpha) =>
       (d) =>
         quadtree = d3.geom.quadtree(@nodes)
-        r = d.radius
+        r = d.radius * 1.2
         d.x = Math.max(d.radius, Math.min(width/2 - d.radius, d.x))
         d.y = Math.max(d.radius, Math.min(height/2 - d.radius, d.y))
         nx1 = d.x - r
@@ -57,9 +70,9 @@ class BubbleGraph
             x = d.x - quad.point.x
             y = d.y - quad.point.y
             l = Math.sqrt(x * x + y * y)
-            r = d.radius + quad.point.radius
-            if (l < r)
-              l = (l - r) / l * alpha
+            r2 = r + quad.point.radius
+            if (l < r2)
+              l = (l - r2) / l * alpha
               d.x -= x *= l
               d.y -= y *= l
               quad.point.x += x
@@ -68,9 +81,12 @@ class BubbleGraph
       )
 
     @force = @force.nodes(@nodes)
+      .links(@links)
       .size([width, height])
       .gravity(0)
       .charge(5)
+      .linkDistance(10)
+      .linkStrength(0)
       .on("tick", tick)
     @force.start()
 
@@ -81,26 +97,21 @@ class BubbleGraph
     @selectedYear = year;
     quadrant.changeYear(year) for quadrant in @quadrants
 
-  updateNodes: () =>
-    nodes = []
-    nodes.push quadrant.nodes... for quadrant in @quadrants
-    @nodes = nodes
-
 class Node
-  constructor: (data, quadrant, colour) ->
+  constructor: (data, quadrant, colour, opacity, fx, fy) ->
     @quadrant = quadrant
     @data = data
     @map = d3.map(@data.years, (d) -> d.year)
     @colour = colour
     @children = data.children
-    @x = quadrant.fx
-    @y = quadrant.fy
+    @opacity = opacity || 1
+    @x = fx || quadrant.fx
+    @y = fy || quadrant.fy
     minR = 20
     maxR = 120
     @minA = geo.areaFromRadius(minR)
     @maxA = geo.areaFromRadius(maxR)
     @circleScale = d3.scale.linear().domain([1, 100000])
-    @quadrant.addNode this
     @selectedYear = 0
     @radius = if data.years[@selectedYear].val <= 0 then 0 else @calculateRadius(@circleScale(data.years[@selectedYear].val), data.years[@selectedYear].val, @minA, @maxA)
 
@@ -113,10 +124,25 @@ class Node
     @selectedYear = @map.keys().indexOf year
     @radius = if (d.val <= 0) then 0 else @calculateRadius(@circleScale(d.val), d.val, @minA, @maxA)
 
+  showText: =>
+    clickText = if @_children
+     "<em>Click to collapse</em> "
+    else if @children
+      "<em>Click to expand</em> "
+    else
+      ""
+
+    "
+    #{clickText}
+    <strong>#{@data.item}</strong>
+    #{d3.format("$,") @data.years[@selectedYear].val}M AUD
+    "
+
 class Quadrant
   constructor: (index, graph, x, y, width, height, fx, fy, colour, name, tooltip) ->
     @index = index
     @nodes = []
+    @links = []
     @graph = graph
     @container = graph.svg
     @x = x
@@ -157,9 +183,21 @@ class Quadrant
 
   addNode: (node) =>
     @nodes.push node
+    @graph.nodes.push node
+
+  addLink: (link) =>
+    @links.push link
+    @graph.links.push link
+
+  removeLinks: (source) =>
+    matches = (link) -> link.source is source
+    @links.removeMatching(matches)
+    @graph.links.removeMatching(matches)
 
   removeNode: (nodeData) =>
-    @nodes.splice(i, 1) for i, node of @nodes when node.data is nodeData
+    matches = (node) -> node.data is nodeData
+    @nodes.removeMatching(matches)
+    @graph.nodes.removeMatching(matches)
 
   changeYear: (year) =>
     node.changeYear(year) for node in @nodes
@@ -179,9 +217,21 @@ class Quadrant
     @element.select('.total')
       .text("#{d3.format(",") @total} Million")
 
+  drawLinks: () =>
+    link = @element.selectAll("line.link").data(@links)
+
+    link.exit().remove()
+
+    link.enter()
+      .append("line")
+      .attr(class: "link")
+      .attr(stroke: @colour)
+      .style(display: (d) => if d.target.data.years[d.target.selectedYear].val < 1 then "none" else "initial")
+
   drawNodes: () =>
     @updateTotal()
     node = @element.selectAll("g.node").data(@nodes)
+    that = this
 
     node.exit().remove()
 
@@ -203,20 +253,17 @@ class Quadrant
       .attr(stroke: (d) -> d.colour)
       .attr("stroke-width": (d) -> if d.data.children then 4 else 1)
       .attr("stroke-opacity": 0.4)
-      .attr("fill-opacity": 0.6)
+      .attr("fill-opacity": (d) -> 0.6 * d.opacity)
       .on("mouseover", (d) ->
         d3.select(this)
           .transition()
-          .attr("fill-opacity": 0.8)
+          .attr("fill-opacity": 0.8 * d.opacity)
 
         if d.data.children
           d3.select(this).transition().attr("stroke-opacity", 0.8)
 
         d.quadrant.tooltip
-          .html("
-            <strong>#{d.data.item}</strong>
-            #{d3.format("$,") d.data.years[d.selectedYear].val}M AUD
-          ")
+          .html(d.showText())
           .style(left: "#{d.x + d.quadrant.x}px")
           .style(top: "#{d.y + d.quadrant.y}px")
           .transition()
@@ -225,7 +272,7 @@ class Quadrant
       .on("mouseout", (d) ->
         d3.select(this)
           .transition()
-          .attr("fill-opacity": 0.6)
+          .attr("fill-opacity": (d) -> 0.6 * d.opacity)
           .attr("stroke-opacity", 0.4)
 
         d.quadrant.tooltip.transition().style(opacity: 0)
@@ -233,17 +280,25 @@ class Quadrant
 
     nodeEnter.filter((d) -> d.data.children)
       .select("circle")
-      .on("click", (d) =>
+      .on("click", (d) ->
+        source = that.graph.nodes.indexOf(d)
+
         if d.children
           d._children = d.children
           d.children = null
-          new Node(node, d.quadrant, d.colour) for node in d._children
+          counts = (that.addNode(new Node(node, d.quadrant, d.colour, 0.5)) for node in d._children)
+          that.addLink {source: source, target: c-1} for c in counts
         else
           d.children = d._children
           d._children = null
-          @removeNode node for node in d.children
-        @graph.updateNodes()
-        @drawNodes()
+          that.removeLinks d
+          that.removeNode node for node in d.children
+
+        d.quadrant.tooltip
+          .html(d.showText())
+
+        that.drawNodes()
+        that.drawLinks()
       )
 
     @graph.force.nodes(@graph.nodes).start()
@@ -267,10 +322,10 @@ getEntity = (data) ->
     map
   , {})
   treeData = []
-  generateTree d, dataMap,treeData for d in d3.map(dataMap).values()
+  generateTree d, dataMap, treeData for d in d3.map(dataMap).values()
   treeData
 
-generateTree = (node, dataMap, treeData) ->
+generateTree = (node, dataMap, treeData, links) ->
   parent = dataMap[node.parent]
   if parent
     children = (parent.children || (parent.children = []))
