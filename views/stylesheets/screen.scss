@@ -23,9 +23,20 @@ body { margin: 0; transition: all 0.2s}
 
 h1, h2 {line-height: 1.5em}
 
-h1 { font-weight: 200; font-size: $type1; margin: 0.25em 0; color: #333333}
-h2 { font-weight: 200; font-size: $type4; color: #d2d2d2; margin-bottom: 1.5em}
-
+header{
+  padding: 0 20px;
+  text-align: center;
+  h2 {
+    text-transform: uppercase;
+    font-size: $type5;
+    color: #333;
+    font-weight: 200;
+  }
+  h1 {
+    font-size: $type4;
+    color: #333;
+  }
+}
 .viz { position: relative }
 
 .tooltip {
@@ -58,18 +69,38 @@ text.title {
   cursor: pointer
 }
 
+.axis {
+  path, line {
+    fill: none;
+    stroke: #ddd;
+    stroke-width: 1;
+  }
+  text {
+    font-size: 10px;
+    color: #666;
+  }
+}
+
 .timeline {
-	position: fixed;
-	width: 1200px;
-	bottom: 0px;
-	left: 0;
-	height: 40px;
+	position: relative;
+  z-index: 100;
 	background-color: rgba(255,255,255,0.5);
+  text-align: center;
+  padding: 20px 0 0;
 	a {
-		display: block;
-		position: absolute;
-		padding: 10px 5px;
+		display: inline-block;
+    margin: 0 8px;
+    background-color: #eee;
+    text-align: center;
+		padding: 6px 4px;
 		width: 80px;
 		cursor: pointer;
+    font-size: 14px;
+    color: #333;
+    font-weight: 200;
+    &.selected {
+      background-color: #333;
+      color: #fff;
+    }
 	}
 }

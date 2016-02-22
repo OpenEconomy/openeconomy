@@ -13,7 +13,6 @@ class BubbleGraph
     @width = 1200
     @height = 600
     @force = d3.layout.force()
-    console.log segmentData
     @years = (y.year for y in segmentData[0].data[0].years)
     @selectedYear = "2013-14"
     @yearIndex = @years.length - 1
@@ -56,7 +55,7 @@ class BubbleGraph
 
     tick = (e) =>
       k = 0.1 * e.alpha
-      (o.y += (o.quadrant.fy - o.y) * k; o.x += (o.quadrant.fx - o.x) * k) for o in @nodes when not o.parent
+      (o.y += (o.quadrant.fy - o.y) * k; o.x += (o.quadrant.fx - o.x) * k) for o in @nodes
       node = @svg.selectAll(".quadrant g.node")
       node.each(collide(e.alpha))
         .attr(transform: (d) -> "translate(#{d.x},#{d.y})")
@@ -71,7 +70,7 @@ class BubbleGraph
     collide = (alpha) =>
       (d) =>
         quadtree = d3.geom.quadtree(@nodes)
-        r = d.radius * 1.2
+        r = d.radius
         d.x = Math.max(d.radius, Math.min(@width/2 - d.radius, d.x))
         d.y = Math.max(d.radius, Math.min(@height/2 - d.radius, d.y))
         nx1 = d.x - r
@@ -98,8 +97,7 @@ class BubbleGraph
       .links(@links)
       .size([@width, @height])
       .gravity(0)
-      .charge(0.5)
-      .linkDistance(10)
+      .charge(0.1)
       .linkStrength(0.5)
       .on("tick", tick)
     @force.start()
@@ -127,7 +125,7 @@ class Node
     @minA = geo.areaFromRadius(minR)
     @maxA = geo.areaFromRadius(maxR)
     @circleScale = d3.scale.linear().domain([1, 100000])
-    @radius = if data.years[@graph.yearIndex].val <= 0 then 0 else @calculateRadius(@circleScale(data.years[@graph.yearIndex].val), data.years[@graph.yearIndex].val, @minA, @maxA)
+    @radius = if data.years[@graph.yearIndex].total <= 0 then 0 else @calculateRadius(@circleScale(data.years[@graph.yearIndex].total), data.years[@graph.yearIndex].total, @minA, @maxA)
 
   calculateRadius: (ratio, value, minArea, maxArea) =>
     area = ((maxArea - minArea) * ratio) + minArea
@@ -135,7 +133,7 @@ class Node
 
   changeYear: (year) =>
     d = @data.years[@graph.yearIndex]
-    @radius = if (d.val <= 0) then 0 else @calculateRadius(@circleScale(d.val), d.val, @minA, @maxA)
+    @radius = if (d.total <= 0) then 0 else @calculateRadius(@circleScale(d.total), d.total, @minA, @maxA)
 
   showText: =>
     clickText = if @_children
@@ -148,7 +146,7 @@ class Node
     "
     #{clickText}
     <strong>#{@data.name}</strong>
-    #{d3.format("$,") @data.years[@graph.yearIndex].val}M AUD
+    #{d3.format("$,") @data.years[@graph.yearIndex].total}M AUD
     "
 
 class Quadrant
@@ -170,7 +168,7 @@ class Quadrant
     @total = 0
     that = this
     textPos = if @fx is 600 then 10 else 580
-    graphPos = if @fx is 600 then 10 else 420
+    graphPos = if @fx is 600 then 10 else 400
 
     @element = @container.append("g")
       .attr(class: "quadrant")
@@ -232,9 +230,10 @@ class Quadrant
     node.select("text")
       .text((d) -> d.data.name.substring(0, d.radius / 3))
     @updateTotal()
+    @dataBox.update(@graph.data, @name, @graph.yearIndex)
 
   updateTotal: =>
-    @total = d3.sum(@nodes, (d) => unless d.data.parent then +d.data.years[@graph.yearIndex].val else 0)
+    @total = d3.sum(@nodes, (d) => unless d.data.parent then +d.data.years[@graph.yearIndex].total else 0)
     @element.select('.total')
       .text("#{d3.format(",") @total} Million")
 
@@ -247,7 +246,7 @@ class Quadrant
       .append("line")
       .attr(class: "link")
       .attr(stroke: @colour)
-      .style(display: (d) => if d.target.data.years[@graph.yearIndex].val < 1 then "none" else "initial")
+      .style(display: (d) => if d.target.data.years[@graph.yearIndex].total < 1 then "none" else "initial")
 
   drawNodes: () =>
     @updateTotal()
@@ -292,6 +291,8 @@ class Quadrant
           .style(top: "#{(d.y + d.quadrant.y) * heightScale}px")
           .transition()
           .style(opacity: 1)
+        data = (n.data for n in that.nodes)
+        that.dataBox.update(data, d.data.name, that.graph.yearIndex)
       )
       .on("mouseout", (d) ->
         d3.select(this)
@@ -300,6 +301,7 @@ class Quadrant
           .attr("stroke-opacity", 0.4)
 
         d.quadrant.tooltip.transition().style(opacity: 0)
+        that.dataBox.update(that.graph.data, that.name, that.graph.yearIndex)
       )
 
     nodeEnter.filter((d) -> d.data.children)
@@ -326,7 +328,7 @@ class Quadrant
       )
 
     @graph.force.nodes(@graph.nodes).start()
-    @dataBox.update(@graph.data, @name)
+    @dataBox.update(@graph.data, @name, @graph.yearIndex)
 
 class DataBox
   constructor: (quadrant, years, x, y) ->
@@ -334,10 +336,12 @@ class DataBox
     @years = years
     @x = x
     @y = y
+    @colour = @quadrant.colour
 
     @contain = @quadrant.element.append("g").attr(class: "data-box")
       .attr(transform: "translate(#{@x},#{@y})")
       .style(display: "none")
+      .attr(opacity: 0)
 
     @xAxis = @contain.append("g")
       .attr("class", "axis")
@@ -347,20 +351,20 @@ class DataBox
 
     @lineChart = @contain.append("g").attr(class: "line-chart")
 
-  update: (data, selected) =>
-    lineChartWidth = 180
-    lineChartHeight = 140
+  update: (data, selected, yearIndex) =>
+    lineChartWidth = 200
+    lineChartHeight = 160
     that = this
     data = data
     selected = selected
 
-    max = d3.max(data, (d) -> d3.max(d.years, (y) -> y.total))
+    max = d3.max(data, (d) -> d3.max(d.years, (y) -> +y.total))
     timeScale = d3.scale.linear().domain([0, @years.length]).range([20, lineChartWidth - 10])
     yScale = d3.scale.linear().domain([0, max]).range([lineChartHeight - 10, 10]).nice()
 
     line = d3.svg.line()
       .x((d, i) -> timeScale(i))
-      .y((d) -> yScale(d.total))
+      .y((d) -> yScale(+d.total))
 
     yA = d3.svg.axis()
       .scale(yScale)
@@ -393,6 +397,16 @@ class DataBox
     @yAxis.call(yA)
       .attr(transform: "translate(20, 0)")
 
+    @lineChart.selectAll('line.year-selected').remove()
+
+    @lineChart.append("line")
+      .attr(stroke: "#999")
+      .attr(class: "year-selected")
+      .attr(x1: () -> timeScale yearIndex)
+      .attr(x2: () -> timeScale yearIndex)
+      .attr(y1: () -> 10)
+      .attr(y2: lineChartHeight - 10)
+
     @lineChart.selectAll("g").remove()
 
     segment = @lineChart.selectAll("g")
@@ -402,20 +416,25 @@ class DataBox
 
     segment.append("path")
       .attr(fill: "none")
-      .attr(stroke: (d) -> d.colour)
+      .attr(stroke: (d) -> d.colour || that.colour)
       .attr("stroke-width": 2)
       .attr(d: (d) -> line(d.years))
-      .attr("stroke-opacity": (d) => if d.name is selected then 1 else 0.2)
+      .attr("stroke-opacity": (d) => if d.name is selected then 1 else 0.4)
 
     segment.selectAll("circle")
       .data((d) -> d.years)
       .enter()
       .append("circle")
-      .attr(fill: (d) -> d3.select(this.parentNode).datum().colour)
-      .attr(r: 3)
+      .attr(fill: (d) -> d3.select(this.parentNode).datum().colour || that.colour)
+      .attr(r: 4)
       .attr(cx: (d, i) -> timeScale(i))
       .attr(cy: (d) -> yScale(d.total))
-      .attr("fill-opacity": (d) -> if d3.select(this.parentNode).datum().name is selected then 1 else 0.2)
+      .attr("fill-opacity": (d,i) ->
+        if d3.select(this.parentNode).datum().name is selected and yearIndex is i
+          1
+        else
+          0
+        )
       .on("mouseover", (d) -> console.log d.total)
 
     # #bar graph
@@ -451,10 +470,10 @@ class DataBox
     #   .text((d) => "$#{d.years[@quadrant.graph.yearIndex].val}M")
 
   show: () =>
-    @contain.style(display: "initial")
+    @contain.style(display: "initial").transition().duration(600).attr(opacity: 1)
 
   hide: () =>
-    @contain.style(display: "none")
+    @contain.transition().attr(opacity: 0).each("end", () -> d3.select(this).style(display: "none"))
 
 
 graph = (e, assetsData, expensesData, liabilitiesData, revenueData) ->
@@ -471,7 +490,7 @@ getEntity = (data) ->
     entity = {years: [], name: node["Item"], parent: node.parent}
     keys = d3.keys node
     years = keys.filter((d) -> !(d is "parent" or d is "Item" or d is "undefined"))
-    entity.years.push {year: year, val: node[year]} for year in years
+    entity.years.push {year: year, total: node[year]} for year in years
     map[node["Item"]] = entity
     map
   , {})
