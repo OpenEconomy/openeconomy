@@ -105,6 +105,10 @@ class BubbleGraph
   drawNodes: () =>
     quadrant.drawNodes() for quadrant in @quadrants
 
+  updateNodes: () =>
+    @nodes = []
+    Array::push.apply @nodes, quadrant.nodes for quadrant in @quadrants
+
   updateYear: (year) =>
     @selectedYear = year
     @yearIndex = @years.indexOf year
@@ -213,10 +217,10 @@ class Quadrant
     @links.removeMatching(matches)
     @graph.links.removeMatching(matches)
 
-  removeNode: (nodeData) =>
-    matches = (node) -> node.data is nodeData
+  removeNodes: (nodes) =>
+    matches = (node) -> node.data in nodes
     @nodes.removeMatching(matches)
-    @graph.nodes.removeMatching(matches)
+    @graph.updateNodes()
 
   changeYear: (year) =>
     node.changeYear(year) for node in @nodes
@@ -249,11 +253,12 @@ class Quadrant
       .style(display: (d) => if d.target.data.years[@graph.yearIndex].total < 1 then "none" else "initial")
 
   drawNodes: () =>
-    @updateTotal()
-    node = @element.selectAll("g.node").data(@nodes)
     that = this
 
-    node.exit().remove()
+    @updateTotal()
+    @element.selectAll("g.node").remove()
+    node = @element.selectAll("g.node").data(@nodes)
+
 
     nodeEnter = node.enter()
       .append("g")
@@ -307,7 +312,8 @@ class Quadrant
     nodeEnter.filter((d) -> d.data.children)
       .select("circle")
       .on("click", (d) ->
-        source = that.graph.nodes.indexOf(d)
+
+        source = d.index
 
         if d.children
           d._children = d.children
@@ -318,7 +324,7 @@ class Quadrant
           d.children = d._children
           d._children = null
           that.removeLinks d
-          that.removeNode node for node in d.children
+          that.removeNodes d.children
 
         d.quadrant.tooltip
           .html(d.showText())
