@@ -1,0 +1,25 @@
+{
+  "title": "Western Australian Budget",
+  "data": [
+    {
+      "name": "liabilities",
+      "colour": "#c54927",
+      "filename": "liabilities.csv"
+    },
+    {
+      "name": "expenses",
+      "colour": "#911048",
+      "filename": "expenses.csv"
+    },
+    {
+      "name": "assets",
+      "colour": "#2789ab",
+      "filename": "assets.csv"
+    },
+    {
+      "name": "revenue",
+      "colour": "#27a776",
+      "filename": "revenue.csv"
+    }
+  ]
+}

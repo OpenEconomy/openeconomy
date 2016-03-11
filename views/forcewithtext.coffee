@@ -17,7 +17,6 @@ class BubbleGraph
     @selectedYear = "2013-14"
     @yearIndex = @years.length - 1
     @data = segmentData
-    center = {x: @width/2, y: @height/2}
     that = this
 
     @svg = d3.select(".viz")
@@ -31,8 +30,29 @@ class BubbleGraph
       .attr(class: "tooltip")
       .style(opacity: 0)
 
-    quadrantData = [{x:0,y:0, fx:@width/2, fy: @height/2}, {x:@width/2,y:0, fx: 0, fy: @height/2}, {x:0,y:@height/2, fx: @width/2, fy: 0}, {x:@width/2,y:@height/2, fx: 0, fy: 0}]
-    @quadrants = (new Quadrant(i, this, q.x, q.y, center.x, center.y, q.fx, q.fy, segmentData[i].colour, segmentData[i].name, tooltip) for q, i in quadrantData)
+    numberOfQuadrants = @data.length
+    quadrantsData = null
+
+    switch numberOfQuadrants
+      when 1
+        quadrantsData = [
+          { x: 0, y: 0, width: @width, height: @height, fx: @width / 2, fy: @height / 2 }
+        ]
+      when 2
+        quadrantsData = [
+          { x: 0, y: 0, width: @width / 2, height: @height, fx: @width / 2, fy: @height / 2 }
+          { x: @width / 2, y: 0,  width: @width / 2, height: @height, fx: 0, fy: @height / 2 }
+        ]
+      when 4
+        quadrantsData = [
+          { x: 0, y: 0, width: @width / 2, height: @height / 2, fx: @width / 2, fy: @height / 2 }
+          { x: @width / 2, y: 0, width: @width / 2, height: @height / 2, fx: 0, fy: @height / 2 }
+          { x: 0, y: @height / 2, width: @width / 2, height: @height / 2, fx: @width / 2, fy: 0}
+          { x: @width / 2, y: @height / 2, width: @width / 2, height: @height / 2, fx: 0, fy: 0 }
+        ]
+
+    # quadrantData = [{x:0,y:0, fx:@width/2, fy: @height/2}, {x:@width/2,y:0, fx: 0, fy: @height/2}, {x:0,y:@height/2, fx: @width/2, fy: 0}, {x:@width/2,y:@height/2, fx: 0, fy: 0}]
+    @quadrants = (new Quadrant(i, this, q.x, q.y, q.width, q.height, q.fx, q.fy, segmentData[i].colour, segmentData[i].name, tooltip) for q, i in quadrantsData)
     nodes = (@quadrants[q].addNode(new Node(node, @quadrants[q], segment.colour)) for node in segment.data) for segment, q in segmentData
 
     @years.sort((a,b) -> d3.ascending(a,b))
@@ -70,9 +90,10 @@ class BubbleGraph
     collide = (alpha) =>
       (d) =>
         quadtree = d3.geom.quadtree(@nodes)
+        quadrant = d.quadrant
         r = d.radius
-        d.x = Math.max(d.radius, Math.min(@width/2 - d.radius, d.x))
-        d.y = Math.max(d.radius, Math.min(@height/2 - d.radius, d.y))
+        d.x = Math.max(d.radius, Math.min(quadrant.width - d.radius, d.x))
+        d.y = Math.max(d.radius, Math.min(quadrant.height - d.radius, d.y))
         nx1 = d.x - r
         nx2 = d.x + r
         ny1 = d.y - r
@@ -83,7 +104,7 @@ class BubbleGraph
             x = d.x - quad.point.x
             y = d.y - quad.point.y
             l = Math.sqrt(x * x + y * y)
-            r2 = r + quad.point.radius
+            r2 = r + quad.point.radius + 5
             if (l < r2)
               l = (l - r2) / l * alpha
               d.x -= x *= l
@@ -517,10 +538,38 @@ generateTree = (node, dataMap, treeData, links) ->
   else
     treeData.push node
 
-queue()
-  .defer(d3.csv, 'data/WA4/assets.csv')
-  .defer(d3.csv, 'data/WA4/expenses.csv')
-  .defer(d3.csv, 'data/WA4/liabilities.csv')
-  .defer(d3.csv, 'data/WA4/revenue.csv')
-  .await(graph)
+graphWithSegments = (segments, err) ->
+  segmentsData = Array.prototype.slice.call(arguments).slice(2)
+  a = segments.map((segmentInfo, segmentsIndex) ->
+    return {
+      name: segmentInfo.name,
+      colour: segmentInfo.colour,
+      data: getEntity(segmentsData[segmentsIndex]),
+      years: getYears(segmentsData[segmentsIndex])
+    }
+  )
+  graph = new BubbleGraph(a)
+
+parseDatasetDetails = (selectedDatasetName, err, data) ->
+  title = data.title
+  segments = data.data
+
+  segmentsQueue = queue(segments.length)
+  segments.forEach((segment) -> segmentsQueue.defer(d3.csv, "data/#{selectedDatasetName}/#{segment.filename}"))
+  segmentsQueue.await(graphWithSegments.bind(this, segments))
+
+selectData = (err, data) ->
+  datasets = data.datasets
+  selectedDatasetName = "WA4"
+
+  d3.json("data/#{selectedDatasetName}/index.json", parseDatasetDetails.bind(this, selectedDatasetName))
+
+d3.json("data/datasets.json", selectData)
+
+# queue()
+#   .defer(d3.csv, 'data/WA/assets.csv')
+#   .defer(d3.csv, 'data/WA/expenses.csv')
+#   .defer(d3.csv, 'data/WA/liabilities.csv')
+#   .defer(d3.csv, 'data/WA/revenue.csv')
+#   .await(graph)
 
