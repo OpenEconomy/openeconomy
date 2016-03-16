@@ -4,6 +4,9 @@ Array.prototype.removeMatching = (matches) ->
     if matches @[i]
       @splice(i, 1)
 
+clearContainers = () ->
+  d3.selectAll(".viz, .timeline").selectAll("*").remove()
+
 geo = new Geo()
 
 class BubbleGraph
@@ -40,14 +43,14 @@ class BubbleGraph
         ]
       when 2
         quadrantsData = [
-          { x: 0, y: 0, width: @width / 2, height: @height, fx: @width / 2, fy: @height / 2 }
-          { x: @width / 2, y: 0,  width: @width / 2, height: @height, fx: 0, fy: @height / 2 }
+          { x: 0, y: 0, width: @width, height: @height / 2, fx: @width / 2, fy: @height / 2 }
+          { x: 0, y: @height / 2,  width: @width, height: @height / 2, fx: @width / 2, fy: 0 }
         ]
       when 4
         quadrantsData = [
           { x: 0, y: 0, width: @width / 2, height: @height / 2, fx: @width / 2, fy: @height / 2 }
           { x: @width / 2, y: 0, width: @width / 2, height: @height / 2, fx: 0, fy: @height / 2 }
-          { x: 0, y: @height / 2, width: @width / 2, height: @height / 2, fx: @width / 2, fy: 0}
+          { x: 0, y: @height / 2, width: @width / 2, height: @height / 2, fx: @width / 2, fy: 0 }
           { x: @width / 2, y: @height / 2, width: @width / 2, height: @height / 2, fx: 0, fy: 0 }
         ]
 
@@ -104,7 +107,7 @@ class BubbleGraph
             x = d.x - quad.point.x
             y = d.y - quad.point.y
             l = Math.sqrt(x * x + y * y)
-            r2 = r + quad.point.radius + 5
+            r2 = r + quad.point.radius
             if (l < r2)
               l = (l - r2) / l * alpha
               d.x -= x *= l
@@ -538,7 +541,35 @@ generateTree = (node, dataMap, treeData, links) ->
   else
     treeData.push node
 
+setHeaderTitle = (title) ->
+  d3.select(".viz-title").text(title)
+
+parseQueryString = () ->
+  search = window.location.search
+
+  result = {}
+
+  if search && search[0] == "?"
+    query = search.slice(1).split("&")
+    if query.length
+      query.forEach (kvString) ->
+        kv = kvString.split("=")
+        if kv.length == 2
+          result[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1])
+
+  return result
+
+getDatasetFromQuery = (parsedQuery) ->
+  result = null
+
+  if parsedQuery && parsedQuery.data
+    result = parsedQuery.data
+
+  return result
+
 graphWithSegments = (segments, err) ->
+  clearContainers()
+
   segmentsData = Array.prototype.slice.call(arguments).slice(2)
   a = segments.map((segmentInfo, segmentsIndex) ->
     return {
@@ -548,23 +579,34 @@ graphWithSegments = (segments, err) ->
       years: getYears(segmentsData[segmentsIndex])
     }
   )
+
   graph = new BubbleGraph(a)
 
 parseDatasetDetails = (selectedDatasetName, err, data) ->
   title = data.title
+  setHeaderTitle(title)
   segments = data.data
 
   segmentsQueue = queue(segments.length)
   segments.forEach((segment) -> segmentsQueue.defer(d3.csv, "data/#{selectedDatasetName}/#{segment.filename}"))
   segmentsQueue.await(graphWithSegments.bind(this, segments))
 
-selectData = (err, data) ->
+selectData = (selectedDatasetName, err, data) ->
   datasets = data.datasets
-  selectedDatasetName = "WA4"
 
-  d3.json("data/#{selectedDatasetName}/index.json", parseDatasetDetails.bind(this, selectedDatasetName))
+  dataset = selectedDatasetName
+  unless dataset in datasets
+    dataset = datasets[0]
 
-d3.json("data/datasets.json", selectData)
+  d3.json("data/#{dataset}/index.json", parseDatasetDetails.bind(this, dataset))
+
+
+querySelectedDataset = getDatasetFromQuery(parseQueryString())
+selectedDataset = querySelectedDataset || "WA4"
+d3.json("data/datasets.json", selectData.bind(this, selectedDataset))
+
+# setTimeout (-> d3.json("data/datasets.json", selectData.bind(this, "test"))), 5000
+
 
 # queue()
 #   .defer(d3.csv, 'data/WA/assets.csv')

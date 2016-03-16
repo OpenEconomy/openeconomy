@@ -1,10 +1,11 @@
 {
   "datasets": [
-    "WA",
+    "WA4",
     "WA2",
     "WA3",
-    "WA4",
-    "bikevision"
+    "WA",
+    "bikevision",
+    "test"
   ]
 }
 

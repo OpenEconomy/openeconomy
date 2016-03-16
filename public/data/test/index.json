@@ -1,0 +1,25 @@
+{
+  "title": "test",
+  "data": [
+    {
+      "name": "liabilities",
+      "colour": "red",
+      "filename": "liabilities.csv"
+    },
+    {
+      "name": "expenses",
+      "colour": "#911048",
+      "filename": "expenses.csv"
+    },
+    {
+      "name": "assets",
+      "colour": "#2789ab",
+      "filename": "assets.csv"
+    },
+    {
+      "name": "revenue",
+      "colour": "#27a776",
+      "filename": "revenue.csv"
+    }
+  ]
+}

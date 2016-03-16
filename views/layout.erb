@@ -1,57 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
-	<head>
-		<title>The Open Economy Project</title>
-        <meta content="en" http-equiv="Content-Language">
-        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="stylesheet" href="/screen.css">
-        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-        <!--<script src="//use.typekit.net/lmv4qmg.js"></script>
-        <script>try{Typekit.load();}catch(e){}</script>-->
-        <script src="/js/d3.v3.min.js" charset="utf-8"></script>
-        <script src="/js/topojson.v1.min.js"></script>
-        <script src="js/queue.min.js"></script>
-        <script src="/js/geo.js"></script>
-        <script src="/js/underscore-min.js"></script>
-	</head>
-    <style>
-    body { font-family: "Helvetica Neue", Helvetica, Arial;}
-    .treemap .node {
-      border: solid 1px white;
-      font: 10px sans-serif;
-      line-height: 12px;
-      overflow: hidden;
-      position: absolute;
-      text-indent: 2px;
-    }
+  <head>
+    <title>The Open Economy Project</title>
+    <meta content="en" http-equiv="Content-Language">
+    <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/screen.css">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <!--<script src="//use.typekit.net/lmv4qmg.js"></script>
+    <script>try{Typekit.load();}catch(e){}</script>-->
+    <script src="/js/d3.v3.min.js" charset="utf-8"></script>
+    <script src="/js/topojson.v1.min.js"></script>
+    <script src="js/queue.min.js"></script>
+    <script src="/js/geo.js"></script>
+    <script src="/js/underscore-min.js"></script>
+  </head>
+  <style>
+body { font-family: "Helvetica Neue", Helvetica, Arial;}
+.treemap .node {
+  border: solid 1px white;
+  font: 10px sans-serif;
+  line-height: 12px;
+  overflow: hidden;
+  position: absolute;
+  text-indent: 2px;
+}
 
     .treemap {
-        width: 1000px;
-        height: 800px;
-        position: relative;
+      width: 1000px;
+      height: 800px;
+      position: relative;
     }
 
     .treemap div:nth-child(1){
-        bottom: 400px;
-        right: 500px;
+      bottom: 400px;
+      right: 500px;
     }
     .treemap > div:nth-child(2){
-        bottom: 400px;
-        left: 500px;
+      bottom: 400px;
+      left: 500px;
     }
     .treemap > div:nth-child(3){
-        top: 400px;
-        right: 500px;
+      top: 400px;
+      right: 500px;
     }
     .treemap > div:nth-child(4){
-        top: 400px;
-        left: 500px;
+      top: 400px;
+      left: 500px;
     }
-    </style>
+  </style>
   <body>
     <div class="content">
-        <%= yield %>
+      <%= yield %>
     </div>
   </body>
 
