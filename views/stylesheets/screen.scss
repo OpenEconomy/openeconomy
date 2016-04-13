@@ -6,17 +6,17 @@ h2 {font-size: $type2;}
 h3 {font-size: $type3;}
 h4 {font-size: $type4;}
 body {
-	font-family: $type;
+  font-family: $type;
 }
 
 .clearfix:before,
 .clearfix:after {
-		content: " ";
-		display: table;
+  content: " ";
+  display: table;
 }
 
 .clearfix:after {
-		clear: both;
+  clear: both;
 }
 
 body { margin: 0; transition: all 0.2s}
@@ -40,14 +40,14 @@ header{
 .viz { position: relative }
 
 .tooltip {
-	position: absolute;
-	font-size: 12px;
-	pointer-events: none;
-	border: 1px solid #dddddd;
-	background-color: rgba(255,255,255,0.8);
-	padding: 6px 10px;
-	line-height: 16px;
-	max-width: 160px;
+  position: absolute;
+  font-size: 12px;
+  pointer-events: none;
+  border: 1px solid #dddddd;
+  background-color: rgba(255,255,255,0.8);
+  padding: 6px 10px;
+  line-height: 16px;
+  max-width: 160px;
 
   em {
     color: #777
@@ -60,9 +60,9 @@ header{
 }
 
 text.title {
-	text-transform: uppercase;
-	font-weight: 500;
-	font-size: 20px;
+  text-transform: uppercase;
+  font-weight: 500;
+  font-size: 20px;
 }
 
 .node circle {
@@ -81,26 +81,34 @@ text.title {
   }
 }
 
-.timeline {
-	position: relative;
+.timeline, .datasets {
+  position: relative;
   z-index: 100;
-	background-color: rgba(255,255,255,0.5);
+  background-color: rgba(255,255,255,0.5);
   text-align: center;
   padding: 20px 0 0;
-	a {
-		display: inline-block;
+  a {
+    display: inline-block;
     margin: 0 8px;
     background-color: #eee;
     text-align: center;
-		padding: 6px 4px;
-		width: 80px;
-		cursor: pointer;
+    padding: 6px 4px;
+    width: 80px;
+    cursor: pointer;
     font-size: 14px;
     color: #333;
     font-weight: 200;
+    text-decoration: none;
     &.selected {
       background-color: #333;
       color: #fff;
     }
-	}
+    &:not(.selected):hover {
+      background-color: #ccc;
+    }
+  }
+}
+
+.datasets a {
+  width: 300px;
 }

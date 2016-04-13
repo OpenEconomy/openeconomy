@@ -2,6 +2,7 @@
 <html lang="en">
   <head>
     <title>The Open Economy Project</title>
+
     <meta content="en" http-equiv="Content-Language">
     <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,21 +11,21 @@
     <!--<script src="//use.typekit.net/lmv4qmg.js"></script>
     <script>try{Typekit.load();}catch(e){}</script>-->
     <script src="/js/d3.v3.min.js" charset="utf-8"></script>
-    <script src="/js/topojson.v1.min.js"></script>
+    <%# <script src="/js/topojson.v1.min.js"></script> %>
     <script src="js/queue.min.js"></script>
     <script src="/js/geo.js"></script>
     <script src="/js/underscore-min.js"></script>
   </head>
   <style>
-body { font-family: "Helvetica Neue", Helvetica, Arial;}
-.treemap .node {
-  border: solid 1px white;
-  font: 10px sans-serif;
-  line-height: 12px;
-  overflow: hidden;
-  position: absolute;
-  text-indent: 2px;
-}
+    body { font-family: "Helvetica Neue", Helvetica, Arial;}
+    .treemap .node {
+      border: solid 1px white;
+      font: 10px sans-serif;
+      line-height: 12px;
+      overflow: hidden;
+      position: absolute;
+      text-indent: 2px;
+    }
 
     .treemap {
       width: 1000px;
@@ -54,5 +55,4 @@ body { font-family: "Helvetica Neue", Helvetica, Arial;}
       <%= yield %>
     </div>
   </body>
-
 </html>

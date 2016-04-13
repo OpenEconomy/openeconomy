@@ -5,7 +5,7 @@ Array.prototype.removeMatching = (matches) ->
       @splice(i, 1)
 
 clearContainers = () ->
-  d3.selectAll(".viz, .timeline").selectAll("*").remove()
+  d3.select(".viz-container").selectAll(".timeline, .viz").selectAll("*").remove()
 
 geo = new Geo()
 
@@ -91,6 +91,7 @@ class BubbleGraph
         .attr("y2", (d)-> d.target.y)
 
     collide = (alpha) =>
+      padding = 5
       (d) =>
         quadtree = d3.geom.quadtree(@nodes)
         quadrant = d.quadrant
@@ -107,7 +108,7 @@ class BubbleGraph
             x = d.x - quad.point.x
             y = d.y - quad.point.y
             l = Math.sqrt(x * x + y * y)
-            r2 = r + quad.point.radius
+            r2 = r + quad.point.radius + padding
             if (l < r2)
               l = (l - r2) / l * alpha
               d.x -= x *= l
@@ -562,8 +563,8 @@ parseQueryString = () ->
 getDatasetFromQuery = (parsedQuery) ->
   result = null
 
-  if parsedQuery && parsedQuery.data
-    result = parsedQuery.data
+  if parsedQuery && parsedQuery["data"]
+    result = parsedQuery["data"]
 
   return result
 
@@ -582,36 +583,49 @@ graphWithSegments = (segments, err) ->
 
   graph = new BubbleGraph(a)
 
-parseDatasetDetails = (selectedDatasetName, err, data) ->
-  title = data.title
+initDatasets = (datasets, selectedDataset, err) ->
+  datasetsData = Array.prototype.slice.call(arguments).slice(3)
+
+  data = datasets.map((datasetKey, datasetIndex) ->
+    {
+      key: datasetKey,
+      meta: datasetsData[datasetIndex]
+    }
+  )
+
+  populateDatasetPicker(data, selectedDataset)
+
+init = () ->
+  selectedDataset = getDatasetFromQuery(parseQueryString())
+  d3.json("data/datasets.json", (err, data) ->
+    datasets = data.datasets
+
+    datasetsMetadataQueue = queue(datasets.length)
+    datasets.forEach((dataset) -> datasetsMetadataQueue.defer(d3.json, "data/#{dataset}/index.json"))
+    datasetsMetadataQueue.await(initDatasets.bind(this, datasets, selectedDataset))
+  )
+
+showDataset = (dataset) ->
+  title = dataset.meta.title
   setHeaderTitle(title)
-  segments = data.data
+  segments = dataset.meta.data
 
   segmentsQueue = queue(segments.length)
-  segments.forEach((segment) -> segmentsQueue.defer(d3.csv, "data/#{selectedDatasetName}/#{segment.filename}"))
+  segments.forEach((segment) -> segmentsQueue.defer(d3.csv, "data/#{dataset.key}/#{segment.filename}"))
   segmentsQueue.await(graphWithSegments.bind(this, segments))
 
-selectData = (selectedDatasetName, err, data) ->
-  datasets = data.datasets
+populateDatasetPicker = (data, selectedDataset) ->
+  selectedDatasetIndex = data.map((d) -> d.key).indexOf(selectedDataset)
+  selectedDatasetIndex = if selectedDatasetIndex >= 0 then selectedDatasetIndex else 0
 
-  dataset = selectedDatasetName
-  unless dataset in datasets
-    dataset = datasets[0]
+  d3.select(".datasets").selectAll("a")
+    .data(data)
+      .enter().append("a")
+    .text((d) -> d.meta.title)
+    .attr("href", (d) -> "/?data=#{d.key}")
+    .classed("selected", (d, i) -> i == selectedDatasetIndex)
 
-  d3.json("data/#{dataset}/index.json", parseDatasetDetails.bind(this, dataset))
+  showDataset(data[selectedDatasetIndex])
 
-
-querySelectedDataset = getDatasetFromQuery(parseQueryString())
-selectedDataset = querySelectedDataset || "WA4"
-d3.json("data/datasets.json", selectData.bind(this, selectedDataset))
-
-# setTimeout (-> d3.json("data/datasets.json", selectData.bind(this, "test"))), 5000
-
-
-# queue()
-#   .defer(d3.csv, 'data/WA/assets.csv')
-#   .defer(d3.csv, 'data/WA/expenses.csv')
-#   .defer(d3.csv, 'data/WA/liabilities.csv')
-#   .defer(d3.csv, 'data/WA/revenue.csv')
-#   .await(graph)
+init()
 
